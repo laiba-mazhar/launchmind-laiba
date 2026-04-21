@@ -1,158 +1,129 @@
 <html>
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>LearnMate</title>
-<style>
+ <meta charset="UTF-8">
+ <meta name="viewport" content="width=device-width, initial-scale=1.0">
+ <title>LearnPlus</title>
+ <style>
   body {
-    font-family: Arial, sans-serif;
-    margin: 0;
-    padding: 0;
-    background-color: #f0f0f0;
-    color: #333;
+   font-family: Arial, sans-serif;
+   margin: 0;
+   padding: 0;
+   background-color: #f0f0f0;
   }
   .container {
-    max-width: 1200px;
-    margin: 40px auto;
-    padding: 20px;
-    background-color: #fff;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+   max-width: 1200px;
+   margin: 0 auto;
+   padding: 20px;
+   background-color: #fff;
+   box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
   }
   .header {
-    background-color: #03055B;
-    color: #fff;
-    padding: 20px;
-    text-align: center;
+   background-color: #03055B;
+   color: #fff;
+   padding: 20px;
+   text-align: center;
   }
-  .headline {
-    font-size: 36px;
-    font-weight: bold;
-    margin-bottom: 10px;
+  .header h1 {
+   font-size: 36px;
+   margin-bottom: 10px;
   }
-  .subheadline {
-    font-size: 18px;
-    margin-bottom: 20px;
+  .header p {
+   font-size: 18px;
   }
   .features {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
+   display: flex;
+   flex-wrap: wrap;
+   justify-content: center;
   }
   .feature {
-    margin: 20px;
-    padding: 20px;
-    border: 1px solid #ddd;
-    border-radius: 10px;
-    width: calc(33.33% - 20px);
+   margin: 20px;
+   width: calc(33.33% - 20px);
+   text-align: center;
   }
-  .feature-icon {
-    font-size: 24px;
-    margin-bottom: 10px;
-  }
-  .feature-name {
-    font-size: 18px;
-    font-weight: bold;
-    margin-bottom: 10px;
-  }
-  .feature-description {
-    font-size: 14px;
+  .feature i {
+   font-size: 24px;
+   margin-bottom: 10px;
   }
   .call-to-action {
-    background-color: #03055B;
-    color: #fff;
-    border: none;
-    padding: 10px 20px;
-    font-size: 18px;
-    cursor: pointer;
-    margin: 20px auto;
-    display: block;
+   background-color: #03055B;
+   color: #fff;
+   padding: 10px 20px;
+   border: none;
+   border-radius: 5px;
+   cursor: pointer;
   }
   .call-to-action:hover {
-    background-color: #001bff;
+   background-color: #001bff;
   }
   .testimonials {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: center;
+   margin-top: 40px;
   }
   .testimonial {
-    margin: 20px;
-    padding: 20px;
-    border: 1px solid #ddd;
-    border-radius: 10px;
-    width: calc(33.33% - 20px);
+   background-color: #f0f0f0;
+   padding: 20px;
+   border: 1px solid #ddd;
+   margin-bottom: 20px;
   }
-  .testimonial-name {
-    font-size: 18px;
-    font-weight: bold;
-    margin-bottom: 10px;
-  }
-  .testimonial-text {
-    font-size: 14px;
+  .testimonial p {
+   font-size: 16px;
   }
   .footer {
-    background-color: #03055B;
-    color: #fff;
-    padding: 10px;
-    text-align: center;
-    clear: both;
+   background-color: #03055B;
+   color: #fff;
+   padding: 10px;
+   text-align: center;
+   clear: both;
   }
   @media only screen and (max-width: 768px) {
-    .feature {
-      width: calc(50% - 20px);
-    }
+   .feature {
+    width: calc(50% - 20px);
+   }
   }
   @media only screen and (max-width: 480px) {
-    .feature {
-      width: 100%;
-    }
-    .testimonial {
-      width: 100%;
-    }
+   .feature {
+    width: 100%;
+   }
   }
-</style>
+ </style>
 </head>
 <body>
-<div class="container">
+ <div class="container">
   <div class="header">
-    <h1 class="headline">Revolutionize Your Learning</h1>
-    <p class="subheadline">Connect with verified local tutors for affordable on-demand sessions, powered by AI</p>
+   <h1>Learn Smarter, Not Harder</h1>
+   <p>Get personalized learning experiences with verified local tutors</p>
   </div>
   <div class="features">
-    <div class="feature">
-      <span class="feature-icon">🛡️</span>
-      <p class="feature-name">Tutor Verification</p>
-      <p class="feature-description">Rigorous background check and certification process for credible and reliable tutors</p>
-    </div>
-    <div class="feature">
-      <span class="feature-icon">🤖</span>
-      <p class="feature-name">AI-Powered Tutor Matching</p>
-      <p class="feature-description">Algorithm-driven system pairs students with suitable tutors based on academic needs and preferences</p>
-    </div>
-    <div class="feature">
-      <span class="feature-icon">📱</span>
-      <p class="feature-name">In-App Messaging and Scheduling</p>
-      <p class="feature-description">Seamless communication and booking system for easy interaction and efficient session scheduling</p>
-    </div>
+   <div class="feature">
+    <i>📚</i>
+    <h2>Tutor Verification</h2>
+    <p>Rigorous background check and certification process for credible tutors</p>
+   </div>
+   <div class="feature">
+    <i>🤖</i>
+    <h2>AI-Powered Tutor Matching</h2>
+    <p>Algorithm-driven system for pairing students with suitable tutors</p>
+   </div>
+   <div class="feature">
+    <i>📅</i>
+    <h2>In-App Messaging and Scheduling</h2>
+    <p>Seamless communication and booking system for easy session management</p>
+   </div>
   </div>
   <button class="call-to-action">Get Early Access</button>
   <div class="testimonials">
-    <div class="testimonial">
-      <p class="testimonial-name">Emily Chen</p>
-      <p class="testimonial-text">LearnMate has been a game-changer for me, providing personalized support and guidance that I couldn't find elsewhere.</p>
-    </div>
-    <div class="testimonial">
-      <p class="testimonial-name">David Lee</p>
-      <p class="testimonial-text">As a tutor, I appreciate the ease of finding consistent and well-paying opportunities that align with my expertise and schedule.</p>
-    </div>
-    <div class="testimonial">
-      <p class="testimonial-name">Dr. Rachel Kim</p>
-      <p class="testimonial-text">LearnMate offers a innovative solution for providing supplementary support and guidance to my students, and I'm excited to see the positive impact it will have on their academic performance.</p>
-    </div>
+   <div class="testimonial">
+    <p>LearnPlus has been a game-changer for me. I can finally get the individualized attention I need to succeed in my coursework. - Emily Chen</p>
+   </div>
+   <div class="testimonial">
+    <p>I've never had a more consistent and reliable stream of tutoring opportunities. LearnPlus is a breath of fresh air for tutors like me. - David Lee</p>
+   </div>
+   <div class="testimonial">
+    <p>I'm impressed by the innovative approach LearnPlus takes to providing supplementary support to my students. It's a valuable resource for our university community. - Dr. Rachel Kim</p>
+   </div>
   </div>
   <div class="footer">
-    <p>&copy; 2024 LearnMate</p>
+   <p>&copy; 2024 LearnPlus</p>
   </div>
-</div>
+ </div>
 </body>
 </html>
