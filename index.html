@@ -1,128 +1,59 @@
 <html>
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>LearnPal</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 0;
-      background-color: #2f4f7f;
-      color: #fff;
-    }
-    .container {
-      max-width: 800px;
-      margin: 40px auto;
-      padding: 20px;
-      background-color: #fff;
-      color: #2f4f7f;
-      border-radius: 10px;
-      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-    }
-    .header {
-      text-align: center;
-      margin-bottom: 20px;
-    }
-    .header h1 {
-      font-size: 36px;
-      margin-bottom: 10px;
-    }
-    .header p {
-      font-size: 18px;
-    }
-    .features {
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      margin-bottom: 20px;
-    }
-    .feature {
-      margin: 20px;
-      text-align: center;
-    }
-    .feature-icon {
-      font-size: 24px;
-      margin-bottom: 10px;
-    }
-    .call-to-action {
-      text-align: center;
-      margin-bottom: 20px;
-    }
-    .call-to-action button {
-      background-color: #2f4f7f;
-      color: #fff;
-      border: none;
-      padding: 10px 20px;
-      font-size: 18px;
-      cursor: pointer;
-      border-radius: 10px;
-    }
-    .call-to-action button:hover {
-      background-color: #1a2f4f;
-    }
-    .testimonials {
-      margin-bottom: 20px;
-    }
-    .testimonial {
-      margin-bottom: 20px;
-      padding: 20px;
-      border: 1px solid #ddd;
-      border-radius: 10px;
-    }
-    .testimonial-quote {
-      font-size: 18px;
-      margin-bottom: 10px;
-    }
-    .footer {
-      text-align: center;
-      color: #fff;
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TutorConnect</title>
+<style>
+body { font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #03194f; color: #fff; }
+.container { max-width: 800px; margin: 40px auto; padding: 20px; background-color: #fff; color: #03194f; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+h1 { font-size: 36px; margin-bottom: 10px; }
+h2 { font-size: 24px; margin-bottom: 20px; }
+.features { display: flex; flex-wrap: wrap; justify-content: space-between; }
+.feature { width: calc(33.33% - 20px); margin: 10px; padding: 20px; background-color: #f7f7f7; border-radius: 10px; }
+.feature i { font-size: 24px; margin-bottom: 10px; }
+.testimonials { display: flex; flex-wrap: wrap; justify-content: space-between; }
+.testimonial { width: calc(50% - 20px); margin: 10px; padding: 20px; background-color: #f7f7f7; border-radius: 10px; }
+.call-to-action { background-color: #03194f; color: #fff; border: none; padding: 10px 20px; font-size: 18px; cursor: pointer; }
+.call-to-action:hover { background-color: #00227a; }
+@media only screen and (max-width: 600px) { .container { margin: 20px auto; } .features { flex-direction: column; } .feature { width: 100%; margin: 10px 0; } .testimonials { flex-direction: column; } .testimonial { width: 100%; margin: 10px 0; } }
+</style>
 </head>
 <body>
-  <div class="container">
-    <div class="header">
-      <h1>Connect with verified local tutors at the lowest prices guaranteed</h1>
-      <p>Get a free first session to ensure a perfect match</p>
-    </div>
-    <div class="features">
-      <div class="feature">
-        <span class="feature-icon">📚</span>
-        <h2>Tutor Verification</h2>
-        <p>A rigorous background check and qualification verification process to ensure tutors are trustworthy and competent</p>
-      </div>
-      <div class="feature">
-        <span class="feature-icon">📅</span>
-        <h2>Session Booking</h2>
-        <p>An intuitive and user-friendly interface for students to book tutoring sessions with verified tutors</p>
-      </div>
-      <div class="feature">
-        <span class="feature-icon">💸</span>
-        <h2>In-app Payment Processing</h2>
-        <p>A secure and convenient payment system for students to pay for tutoring sessions</p>
-      </div>
-    </div>
-    <div class="call-to-action">
-      <button>Get Early Access</button>
-    </div>
-    <div class="testimonials">
-      <div class="testimonial">
-        <p class="testimonial-quote">I was struggling with calculus and chemistry, but with LearnPal, I found a great tutor who helped me improve my grades.</p>
-        <p>— Emily, Freshman Student</p>
-      </div>
-      <div class="testimonial">
-        <p class="testimonial-quote">LearnPal has been a game-changer for me. I can now work with reliable and consistent tutoring clients.</p>
-        <p>— David, Part-time Tutor</p>
-      </div>
-      <div class="testimonial">
-        <p class="testimonial-quote">As a parent, I was concerned about my child's safety and affordability, but LearnPal has exceeded my expectations.</p>
-        <p>— Sarah, Parent of a University Student</p>
-      </div>
-    </div>
-    <div class="footer">
-      <p>&copy; 2024 LearnPal</p>
-    </div>
-  </div>
+<div class="container">
+<h1>Revolutionizing Education with AI-Powered Tutoring</h1>
+<h2>Connect with verified local tutors for personalized learning experiences</h2>
+<div class="features">
+<div class="feature">
+<i>📚</i>
+<h3>Tutor Verification</h3>
+<p>Rigorous background check and certification process for credible tutors</p>
+</div>
+<div class="feature">
+<i>🤖</i>
+<h3>AI-Powered Tutor Matching</h3>
+<p>Algorithm-driven system for pairing students with suitable tutors</p>
+</div>
+<div class="feature">
+<i>📱</i>
+<h3>In-App Messaging and Scheduling</h3>
+<p>Seamless communication and booking system for efficient session management</p>
+</div>
+</div>
+<button class="call-to-action">Get Early Access</button>
+<div class="testimonials">
+<div class="testimonial">
+<p>"TutorConnect has been a game-changer for me. I can finally get the individualized attention I need to succeed." - Emily Chen</p>
+</div>
+<div class="testimonial">
+<p>"I've never had a easier time finding consistent and trustworthy tutoring opportunities. Thank you, TutorConnect!" - David Lee</p>
+</div>
+<div class="testimonial">
+<p>"TutorConnect is exactly what our students need. It's innovative, effective, and easy to use." - Dr. Rachel Kim</p>
+</div>
+</div>
+<footer>
+<p>&copy; 2024 TutorConnect</p>
+</footer>
+</div>
 </body>
 </html>
