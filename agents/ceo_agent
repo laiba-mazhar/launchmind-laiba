@@ -1,0 +1,258 @@
+"""
+agents/ceo_agent.py
+CEO Agent — orchestrator. Decomposes idea, dispatches tasks, reviews outputs,
+runs feedback loops, posts final Slack summary.
+Owner: [Student Name]
+"""
+
+import json
+import os
+
+import requests
+from openai import OpenAI
+
+import message_bus as bus
+
+client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+
+SLACK_BOT_TOKEN = os.environ["SLACK_BOT_TOKEN"]
+SLACK_CHANNEL = "#launches"
+
+MAX_REVISION_CYCLES = 2     # CEO will ask for at most this many revisions per agent
+
+
+# ── LLM ──────────────────────────────────────────────────────────────────────
+
+def _call_llm(system: str, user: str) -> str:
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ],
+        temperature=0.5,
+    )
+    return response.choices[0].message.content.strip()
+
+
+def _parse_json(raw: str) -> dict:
+    clean = raw.strip()
+    if clean.startswith("```"):
+        clean = clean.split("```")[1]
+        if clean.startswith("json"):
+            clean = clean[4:]
+    return json.loads(clean.strip())
+
+
+# ── Decision helpers ──────────────────────────────────────────────────────────
+
+def decompose_idea(idea: str) -> dict:
+    """LLM call #1: break the startup idea into tasks for each agent."""
+    print("[CEO] Decomposing startup idea into agent tasks...")
+    raw = _call_llm(
+        "You are a startup CEO. Decompose work into precise instructions for your team. Return only valid JSON.",
+        f"""
+Startup idea: "{idea}"
+
+Create specific task instructions for each team member. Return JSON:
+{{
+  "product_focus": "specific instructions for the product manager — what to focus on",
+  "engineer_focus": "specific instructions for the engineer — what to emphasise in the landing page",
+  "marketing_focus": "specific instructions for the marketer — tone, target audience emphasis"
+}}
+""",
+    )
+    tasks = _parse_json(raw)
+    print(f"[CEO] Tasks decomposed.")
+    return tasks
+
+
+def review_product_spec(spec: dict, idea: str) -> dict:
+    """LLM call #2: review the product spec and decide pass/fail."""
+    print("[CEO] Reviewing product spec...")
+    raw = _call_llm(
+        "You are a critical CEO reviewing your product manager's work. Be demanding. Return only valid JSON.",
+        f"""
+Original idea: "{idea}"
+
+Product spec to review:
+{json.dumps(spec, indent=2)}
+
+Assess rigorously:
+1. Is the value proposition specific (not generic)?
+2. Are the personas realistic with concrete pain points?
+3. Are the 5 features concrete and prioritised logically?
+4. Are the user stories well-formed?
+
+Return JSON:
+{{
+  "verdict": "pass" or "fail",
+  "feedback": "if fail: specific list of what needs to be fixed. If pass: empty string."
+}}
+""",
+    )
+    return _parse_json(raw)
+
+
+def review_engineer_output(html: str, spec: dict) -> dict:
+    """LLM call #3: review the HTML landing page."""
+    print("[CEO] Reviewing engineer output...")
+    raw = _call_llm(
+        "You are a CEO reviewing your engineer's landing page. Return only valid JSON.",
+        f"""
+Value proposition: {spec['value_proposition']}
+
+HTML landing page (first 2000 chars):
+{html[:2000]}
+
+Does the landing page:
+1. Have a headline that reflects the value proposition?
+2. Mention the top features?
+3. Have a clear call-to-action?
+4. Look reasonably complete?
+
+Return JSON:
+{{
+  "verdict": "pass" or "fail",
+  "feedback": "specific issues if fail, else empty string"
+}}
+""",
+    )
+    return _parse_json(raw)
+
+
+def review_marketing_output(copy: dict, spec: dict) -> dict:
+    """LLM call #4: review the marketing copy."""
+    print("[CEO] Reviewing marketing copy...")
+    raw = _call_llm(
+        "You are a CEO reviewing your marketing team's copy. Return only valid JSON.",
+        f"""
+Value proposition: {spec['value_proposition']}
+
+Marketing copy:
+{json.dumps(copy, indent=2)}
+
+Assess:
+1. Is the tagline punchy and relevant?
+2. Does the email have a clear CTA?
+3. Is the social copy platform-appropriate?
+
+Return JSON:
+{{
+  "verdict": "pass" or "fail",
+  "feedback": "specific issues if fail, else empty string"
+}}
+""",
+    )
+    return _parse_json(raw)
+
+
+# ── Slack final summary ───────────────────────────────────────────────────────
+
+def _post_final_summary(idea: str, spec: dict, copy: dict, pr_url: str, issue_url: str) -> None:
+    blocks = [
+        {
+            "type": "header",
+            "text": {"type": "plain_text", "text": "✅ LaunchMind — Mission Complete"},
+        },
+        {"type": "divider"},
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": f"*Startup Idea:* {idea}\n*Value Proposition:* {spec['value_proposition']}",
+            },
+        },
+        {
+            "type": "section",
+            "fields": [
+                {"type": "mrkdwn", "text": f"*Tagline:*\n_{copy.get('tagline', 'N/A')}_"},
+                {"type": "mrkdwn", "text": f"*Startup Name:*\n{copy.get('startup_name', 'N/A')}"},
+                {"type": "mrkdwn", "text": f"*GitHub PR:*\n<{pr_url}|View PR>"},
+                {"type": "mrkdwn", "text": f"*GitHub Issue:*\n<{issue_url}|View Issue>"},
+            ],
+        },
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": "*Top Features Built:*\n"
+                + "\n".join(
+                    f"• *{f['name']}* — {f['description']}"
+                    for f in spec["features"][:3]
+                ),
+            },
+        },
+        {"type": "divider"},
+        {
+            "type": "context",
+            "elements": [
+                {"type": "mrkdwn", "text": "_Final summary by LaunchMind CEO Agent_ 🤖"}
+            ],
+        },
+    ]
+
+    r = requests.post(
+        "https://slack.com/api/chat.postMessage",
+        headers={
+            "Authorization": f"Bearer {SLACK_BOT_TOKEN}",
+            "Content-Type": "application/json",
+        },
+        json={"channel": SLACK_CHANNEL, "blocks": blocks},
+    )
+    data = r.json()
+    if data.get("ok"):
+        print("[CEO] Final Slack summary posted.")
+    else:
+        print(f"[CEO] Slack error: {data.get('error')}")
+
+
+# ── Decision log ──────────────────────────────────────────────────────────────
+
+_decision_log: list[dict] = []
+
+
+def _log(agent: str, verdict: str, action: str, feedback: str = "") -> None:
+    entry = {"agent": agent, "verdict": verdict, "action": action, "feedback": feedback}
+    _decision_log.append(entry)
+    print(f"[CEO] Decision → agent={agent} | verdict={verdict} | action={action}")
+    if feedback:
+        print(f"         feedback: {feedback}")
+
+
+def get_decision_log() -> list[dict]:
+    return list(_decision_log)
+
+
+# ── Orchestration ─────────────────────────────────────────────────────────────
+
+def dispatch_to_product(idea: str, focus: str) -> None:
+    bus.send_message("ceo", "product", "task", {"idea": idea, "focus": focus})
+
+
+def dispatch_revision_to_product(idea: str, feedback: str) -> None:
+    bus.send_message(
+        "ceo", "product", "revision_request",
+        {"idea": idea, "focus": feedback},
+    )
+
+
+def dispatch_to_qa(html: str, copy: dict, spec: dict, pr_url: str) -> None:
+    bus.send_message(
+        "ceo", "qa", "task",
+        {"html": html, "copy": copy, "spec": spec, "pr_url": pr_url},
+    )
+
+
+def post_final_summary(idea: str, spec: dict, copy: dict, pr_url: str, issue_url: str) -> None:
+    _post_final_summary(idea, spec, copy, pr_url, issue_url)
+    # Also send as a message to self for log completeness
+    bus.send_message(
+        "ceo", "ceo", "result",
+        {
+            "status": "complete",
+            "pr_url": pr_url,
+            "issue_url": issue_url,
+            "startup_name": copy.get("startup_name"),
+        },
+    )
