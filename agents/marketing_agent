@@ -1,0 +1,186 @@
+"""
+agents/marketing_agent.py
+Marketing Agent — generates copy, sends email via SendGrid, posts to Slack.
+Owner: [Student Name]
+"""
+
+import json
+import os
+
+import requests
+from openai import OpenAI
+from sendgrid import SendGridAPIClient
+from sendgrid.helpers.mail import Mail
+
+import message_bus as bus
+
+client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+
+SENDGRID_API_KEY = os.environ["SENDGRID_API_KEY"]
+SENDGRID_FROM = os.environ["SENDGRID_FROM_EMAIL"]   # verified sender
+TEST_EMAIL = os.environ["TEST_EMAIL"]                # where to send the test email
+SLACK_BOT_TOKEN = os.environ["SLACK_BOT_TOKEN"]
+SLACK_CHANNEL = "#launches"
+
+
+# ── LLM ──────────────────────────────────────────────────────────────────────
+
+def _call_llm(system: str, user: str) -> str:
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ],
+        temperature=0.8,
+    )
+    return response.choices[0].message.content.strip()
+
+
+def _parse_json(raw: str) -> dict:
+    clean = raw.strip()
+    if clean.startswith("```"):
+        clean = clean.split("```")[1]
+        if clean.startswith("json"):
+            clean = clean[4:]
+    return json.loads(clean.strip())
+
+
+# ── Email ─────────────────────────────────────────────────────────────────────
+
+def _send_email(subject: str, body: str) -> None:
+    message = Mail(
+        from_email=SENDGRID_FROM,
+        to_emails=TEST_EMAIL,
+        subject=subject,
+        html_content=f"<div style='font-family:sans-serif;max-width:600px;margin:auto'>{body}</div>",
+    )
+    sg = SendGridAPIClient(SENDGRID_API_KEY)
+    response = sg.send(message)
+    print(f"[MARKETING] Email sent → {TEST_EMAIL} (status {response.status_code})")
+
+
+# ── Slack ─────────────────────────────────────────────────────────────────────
+
+def _post_to_slack(tagline: str, description: str, pr_url: str, startup_name: str) -> None:
+    blocks = [
+        {
+            "type": "header",
+            "text": {"type": "plain_text", "text": f"🚀 New Launch: {startup_name}"},
+        },
+        {"type": "divider"},
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": f"*{tagline}*\n\n{description}",
+            },
+        },
+        {
+            "type": "section",
+            "fields": [
+                {"type": "mrkdwn", "text": f"*GitHub PR:*\n<{pr_url}|View Pull Request>"},
+                {"type": "mrkdwn", "text": "*Status:*\n✅ Ready for review"},
+            ],
+        },
+        {
+            "type": "actions",
+            "elements": [
+                {
+                    "type": "button",
+                    "text": {"type": "plain_text", "text": "View PR"},
+                    "url": pr_url,
+                    "style": "primary",
+                }
+            ],
+        },
+        {"type": "divider"},
+        {
+            "type": "context",
+            "elements": [
+                {"type": "mrkdwn", "text": "_Posted by LaunchMind Marketing Agent_ 🤖"}
+            ],
+        },
+    ]
+
+    r = requests.post(
+        "https://slack.com/api/chat.postMessage",
+        headers={
+            "Authorization": f"Bearer {SLACK_BOT_TOKEN}",
+            "Content-Type": "application/json",
+        },
+        json={"channel": SLACK_CHANNEL, "blocks": blocks},
+    )
+    data = r.json()
+    if data.get("ok"):
+        print(f"[MARKETING] Slack message posted to {SLACK_CHANNEL}")
+    else:
+        print(f"[MARKETING] Slack error: {data.get('error')}")
+
+
+# ── Main ──────────────────────────────────────────────────────────────────────
+
+def run(pr_url: str) -> dict:
+    """
+    Run the Marketing agent.
+    pr_url: GitHub pull request URL (passed in from CEO after engineer finishes).
+    Returns the copy dict.
+    """
+    print("\n[MARKETING AGENT] Starting...")
+
+    msg = bus.get_latest("marketing")
+    if msg is None:
+        raise RuntimeError("Marketing agent: no messages in inbox.")
+
+    spec = msg["payload"]["spec"]
+    parent_id = msg["message_id"]
+
+    system_prompt = (
+        "You are a world-class growth marketer. You write punchy, specific copy "
+        "tailored to the product. Return only valid JSON — no markdown, no explanation."
+    )
+
+    user_prompt = f"""
+Product details:
+- Value proposition: {spec['value_proposition']}
+- Target personas: {json.dumps(spec['personas'])}
+- Top features: {json.dumps(spec['features'][:3])}
+
+Generate marketing copy as JSON with these exact fields:
+{{
+  "startup_name": "catchy 1-3 word product name",
+  "tagline": "under 10 words, punchy, memorable",
+  "landing_description": "2-3 sentences for the landing page hero section",
+  "email_subject": "compelling cold outreach subject line",
+  "email_body": "HTML-friendly cold outreach email body (3-4 short paragraphs) to a potential early user. Include a clear CTA.",
+  "twitter_post": "under 280 chars, includes relevant hashtags",
+  "linkedin_post": "professional tone, 3-4 sentences, no hashtag spam",
+  "instagram_post": "casual enthusiastic tone, 2-3 sentences, 4-5 relevant hashtags"
+}}
+"""
+
+    raw = _call_llm(system_prompt, user_prompt)
+    copy = _parse_json(raw)
+
+    print(f"[MARKETING] Copy generated. Tagline: {copy['tagline']}")
+
+    # Send email
+    _send_email(copy["email_subject"], copy["email_body"])
+
+    # Post to Slack
+    _post_to_slack(
+        copy["tagline"],
+        copy["landing_description"],
+        pr_url,
+        copy["startup_name"],
+    )
+
+    # Report back to CEO
+    bus.send_message(
+        "marketing", "ceo", "result",
+        {"copy": copy, "email_sent_to": TEST_EMAIL, "slack_channel": SLACK_CHANNEL},
+        parent_id,
+    )
+
+    bus.clear_inbox("marketing")
+    return copy
