@@ -1,0 +1,108 @@
+"""
+agents/product_agent.py
+Product Agent — generates a structured product specification.
+Owner: [Student Name]
+"""
+
+import json
+import os
+
+from openai import OpenAI
+
+import message_bus as bus
+
+client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+
+
+def _call_llm(system: str, user: str) -> str:
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ],
+        temperature=0.7,
+    )
+    return response.choices[0].message.content.strip()
+
+
+def _parse_json(raw: str) -> dict:
+    """Strip markdown fences if present, then parse JSON."""
+    clean = raw.strip()
+    if clean.startswith("```"):
+        clean = clean.split("```")[1]
+        if clean.startswith("json"):
+            clean = clean[4:]
+    return json.loads(clean.strip())
+
+
+def run(revision_feedback: str = None) -> dict:
+    """
+    Run the Product agent.
+    If revision_feedback is provided, it incorporates the CEO's notes.
+    Returns the product spec dict.
+    """
+    print("\n[PRODUCT AGENT] Starting...")
+
+    msg = bus.get_latest("product")
+    if msg is None:
+        raise RuntimeError("Product agent: no messages in inbox.")
+
+    idea = msg["payload"]["idea"]
+    focus = msg["payload"].get("focus", "")
+    parent_id = msg["message_id"]
+
+    extra = ""
+    if revision_feedback:
+        extra = f"\n\nIMPORTANT: A previous version was rejected. Address these issues:\n{revision_feedback}"
+
+    system_prompt = (
+        "You are a senior product manager. You produce precise, realistic product "
+        "specifications. Always return valid JSON only — no markdown, no explanation."
+    )
+
+    user_prompt = f"""
+Startup idea: "{idea}"
+Focus area from CEO: "{focus}"{extra}
+
+Return a JSON object with exactly these fields:
+{{
+  "value_proposition": "one sentence — what the product does and for whom",
+  "personas": [
+    {{"name": "...", "role": "...", "pain_point": "..."}},
+    {{"name": "...", "role": "...", "pain_point": "..."}},
+    {{"name": "...", "role": "...", "pain_point": "..."}}
+  ],
+  "features": [
+    {{"name": "...", "description": "...", "priority": 1}},
+    {{"name": "...", "description": "...", "priority": 2}},
+    {{"name": "...", "description": "...", "priority": 3}},
+    {{"name": "...", "description": "...", "priority": 4}},
+    {{"name": "...", "description": "...", "priority": 5}}
+  ],
+  "user_stories": [
+    "As a [user], I want to [action] so that [benefit].",
+    "As a [user], I want to [action] so that [benefit].",
+    "As a [user], I want to [action] so that [benefit]."
+  ]
+}}
+"""
+
+    raw = _call_llm(system_prompt, user_prompt)
+    spec = _parse_json(raw)
+
+    print(f"[PRODUCT AGENT] Spec generated. Value prop: {spec['value_proposition']}")
+
+    # Send spec to Engineer and Marketing
+    bus.send_message("product", "engineer", "task", {"spec": spec}, parent_id)
+    bus.send_message("product", "marketing", "task", {"spec": spec}, parent_id)
+
+    # Confirm back to CEO
+    bus.send_message(
+        "product", "ceo", "confirmation",
+        {"status": "spec_ready", "spec": spec},
+        parent_id,
+    )
+
+    bus.clear_inbox("product")
+    return spec
