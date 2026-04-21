@@ -1,0 +1,221 @@
+"""
+agents/qa_agent.py
+QA / Reviewer Agent — reviews HTML + marketing copy, posts PR comments.
+Owner: [Student Name]
+"""
+
+import json
+import os
+
+import requests
+from openai import OpenAI
+
+import message_bus as bus
+
+client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+
+GITHUB_TOKEN = os.environ["GITHUB_TOKEN"]
+GITHUB_REPO = os.environ["GITHUB_REPO"]
+GITHUB_HEADERS = {
+    "Authorization": f"token {GITHUB_TOKEN}",
+    "Accept": "application/vnd.github+json",
+    "X-GitHub-Api-Version": "2022-11-28",
+}
+BASE_URL = f"https://api.github.com/repos/{GITHUB_REPO}"
+
+
+# ── LLM ──────────────────────────────────────────────────────────────────────
+
+def _call_llm(system: str, user: str) -> str:
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ],
+        temperature=0.4,
+    )
+    return response.choices[0].message.content.strip()
+
+
+def _parse_json(raw: str) -> dict:
+    clean = raw.strip()
+    if clean.startswith("```"):
+        clean = clean.split("```")[1]
+        if clean.startswith("json"):
+            clean = clean[4:]
+    return json.loads(clean.strip())
+
+
+# ── GitHub PR review ──────────────────────────────────────────────────────────
+
+def _get_pr_number(pr_url: str) -> int:
+    return int(pr_url.rstrip("/").split("/")[-1])
+
+
+def _get_latest_commit_sha(pr_number: int) -> str:
+    r = requests.get(
+        f"{BASE_URL}/pulls/{pr_number}/commits",
+        headers=GITHUB_HEADERS,
+    )
+    r.raise_for_status()
+    commits = r.json()
+    return commits[-1]["sha"]
+
+
+def _post_review_comments(pr_number: int, commit_sha: str, comments: list[dict]) -> None:
+    """
+    Post inline review comments on the PR.
+    Each comment: {"line": int, "body": str}
+    """
+    review_comments = [
+        {
+            "path": "index.html",
+            "position": c.get("line", 1),
+            "body": c["body"],
+        }
+        for c in comments
+    ]
+
+    r = requests.post(
+        f"{BASE_URL}/pulls/{pr_number}/reviews",
+        headers=GITHUB_HEADERS,
+        json={
+            "commit_id": commit_sha,
+            "body": "Automated QA review by LaunchMind QA Agent 🤖",
+            "event": "COMMENT",
+            "comments": review_comments,
+        },
+    )
+    if r.status_code in (200, 201):
+        print(f"[QA] Posted {len(review_comments)} inline review comment(s) on PR #{pr_number}")
+    else:
+        # Fallback: post as a regular PR comment if review comments fail
+        print(f"[QA] Inline comments failed ({r.status_code}), posting as general comment.")
+        body = "**QA Agent Review** 🤖\n\n" + "\n\n".join(
+            f"- {c['body']}" for c in comments
+        )
+        requests.post(
+            f"{BASE_URL}/issues/{pr_number}/comments",
+            headers=GITHUB_HEADERS,
+            json={"body": body},
+        )
+        print(f"[QA] General comment posted on PR #{pr_number}")
+
+
+# ── Main ──────────────────────────────────────────────────────────────────────
+
+def run() -> dict:
+    """
+    Run the QA agent.
+    Returns the review report dict.
+    """
+    print("\n[QA AGENT] Starting...")
+
+    msg = bus.get_latest("qa")
+    if msg is None:
+        raise RuntimeError("QA agent: no messages in inbox.")
+
+    payload = msg["payload"]
+    html = payload["html"]
+    copy = payload["copy"]
+    spec = payload["spec"]
+    pr_url = payload["pr_url"]
+    parent_id = msg["message_id"]
+
+    # ── Review HTML ───────────────────────────────────────────────────────────
+    html_system = (
+        "You are a QA engineer reviewing an AI-generated HTML landing page. "
+        "Be specific. Return only valid JSON."
+    )
+    html_prompt = f"""
+Product spec:
+- Value proposition: {spec['value_proposition']}
+- Features: {json.dumps(spec['features'][:3])}
+
+HTML to review:
+{html[:3000]}
+
+Review the HTML and return JSON:
+{{
+  "verdict": "pass" or "fail",
+  "issues": [
+    {{"line_hint": <approximate line number 1-50>, "comment": "specific issue description"}},
+    ...
+  ],
+  "summary": "overall 1-2 sentence assessment"
+}}
+
+Check for:
+1. Does the headline reflect the value proposition?
+2. Are the top features mentioned?
+3. Is there a working CTA button?
+4. Is the HTML well-formed?
+5. Is there a responsive meta viewport tag?
+
+Always include at least 2 issues (even minor suggestions).
+"""
+
+    html_review = _parse_json(_call_llm(html_system, html_prompt))
+    print(f"[QA] HTML review verdict: {html_review['verdict']}")
+
+    # ── Review marketing copy ─────────────────────────────────────────────────
+    copy_system = (
+        "You are a marketing QA reviewer. Be specific. Return only valid JSON."
+    )
+    copy_prompt = f"""
+Product spec:
+- Value proposition: {spec['value_proposition']}
+- Target personas: {json.dumps(spec['personas'])}
+
+Marketing copy to review:
+{json.dumps(copy, indent=2)}
+
+Return JSON:
+{{
+  "verdict": "pass" or "fail",
+  "issues": ["specific issue 1", "specific issue 2"],
+  "summary": "1-2 sentence overall assessment"
+}}
+
+Check: Is the tagline compelling? Does the email have a clear CTA? Is tone appropriate?
+"""
+
+    copy_review = _parse_json(_call_llm(copy_system, copy_prompt))
+    print(f"[QA] Copy review verdict: {copy_review['verdict']}")
+
+    # ── Post PR review comments ───────────────────────────────────────────────
+    pr_number = _get_pr_number(pr_url)
+    try:
+        commit_sha = _get_latest_commit_sha(pr_number)
+        comments = [
+            {"line": issue.get("line_hint", 1), "body": f"🤖 QA: {issue['comment']}"}
+            for issue in html_review.get("issues", [])[:4]  # max 4 inline comments
+        ]
+        if comments:
+            _post_review_comments(pr_number, commit_sha, comments)
+    except Exception as e:
+        print(f"[QA] Warning: Could not post inline PR comments: {e}")
+
+    # ── Build report ──────────────────────────────────────────────────────────
+    overall_verdict = (
+        "pass"
+        if html_review["verdict"] == "pass" and copy_review["verdict"] == "pass"
+        else "fail"
+    )
+
+    report = {
+        "overall_verdict": overall_verdict,
+        "html_review": html_review,
+        "copy_review": copy_review,
+        "pr_url": pr_url,
+    }
+
+    bus.send_message(
+        "qa", "ceo", "result",
+        {"review_report": report},
+        parent_id,
+    )
+
+    bus.clear_inbox("qa")
+    return report
