@@ -1,113 +1,128 @@
 <html>
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<style>
-body { 
-  font-family: Arial, sans-serif; 
-  margin: 0; 
-  padding: 0; 
-  background-color: #f0f0f0; 
-  color: #333; 
-  line-height: 1.6; 
-}
-header { 
-  background-color: #03055B; 
-  color: #fff; 
-  padding: 1em; 
-  text-align: center; 
-}
-header h1 { 
-  font-size: 2em; 
-  margin: 0; 
-}
-.features { 
-  display: flex; 
-  flex-wrap: wrap; 
-  justify-content: center; 
-  margin: 2em; 
-}
-.feature { 
-  background-color: #fff; 
-  padding: 1em; 
-  margin: 1em; 
-  border: 1px solid #ddd; 
-  border-radius: 10px; 
-  box-shadow: 0 0 10px rgba(0,0,0,0.1); 
-  width: calc(33.33% - 2em); 
-}
-.feature i { 
-  font-size: 2em; 
-  margin: 0.5em; 
-}
-.testimonials { 
-  background-color: #f7f7f7; 
-  padding: 2em; 
-  margin: 2em; 
-}
-.testimonial { 
-  background-color: #fff; 
-  padding: 1em; 
-  margin: 1em; 
-  border: 1px solid #ddd; 
-  border-radius: 10px; 
-  box-shadow: 0 0 10px rgba(0,0,0,0.1); 
-}
-button { 
-  background-color: #03055B; 
-  color: #fff; 
-  padding: 1em 2em; 
-  border: none; 
-  border-radius: 10px; 
-  cursor: pointer; 
-}
-button:hover { 
-  background-color: #001bff; 
-}
-footer { 
-  background-color: #03055B; 
-  color: #fff; 
-  padding: 1em;  text-align: center; 
-  clear: both; 
-}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LearnPal</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #2f4f7f;
+      color: #fff;
+    }
+    .container {
+      max-width: 800px;
+      margin: 40px auto;
+      padding: 20px;
+      background-color: #fff;
+      color: #2f4f7f;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .header h1 {
+      font-size: 36px;
+      margin-bottom: 10px;
+    }
+    .header p {
+      font-size: 18px;
+    }
+    .features {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-bottom: 20px;
+    }
+    .feature {
+      margin: 20px;
+      text-align: center;
+    }
+    .feature-icon {
+      font-size: 24px;
+      margin-bottom: 10px;
+    }
+    .call-to-action {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .call-to-action button {
+      background-color: #2f4f7f;
+      color: #fff;
+      border: none;
+      padding: 10px 20px;
+      font-size: 18px;
+      cursor: pointer;
+      border-radius: 10px;
+    }
+    .call-to-action button:hover {
+      background-color: #1a2f4f;
+    }
+    .testimonials {
+      margin-bottom: 20px;
+    }
+    .testimonial {
+      margin-bottom: 20px;
+      padding: 20px;
+      border: 1px solid #ddd;
+      border-radius: 10px;
+    }
+    .testimonial-quote {
+      font-size: 18px;
+      margin-bottom: 10px;
+    }
+    .footer {
+      text-align: center;
+      color: #fff;
+    }
+  </style>
 </head>
 <body>
-<header>
-<h1>Connect with Verified Local Tutors at the Lowest Prices Guaranteed</h1>
-<p>Get access to on-demand tutoring sessions with our free first session guarantee, ensuring a perfect match for your academic needs</p>
-</header>
-<section class="features">
-<div class="feature">
-<i>📚</i>
-<h2>Tutor Verification</h2>
-<p>A rigorous background check and qualification verification process to ensure tutors are trustworthy and competent</p>
-</div>
-<div class="feature">
-<i>📅</i>
-<h2>Session Booking</h2>
-<p>An intuitive and user-friendly interface for students to book tutoring sessions with verified tutors</p>
-</div>
-<div class="feature">
-<i>💸</i>
-<h2>In-app Payment Processing</h2>
-<p>A secure and convenient payment system for students to pay for tutoring sessions</p>
-</div>
-</section>
-<button>Get Early Access</button>
-<section class="testimonials">
-<h2>What Our Users Say</h2>
-<div class="testimonial">
-<p>"I was struggling with calculus and chemistry, but with this app, I found a great tutor who helped me improve my grades." - Emily</p>
-</div>
-<div class="testimonial">
-<p>"I was able to find reliable and consistent tutoring clients through this app, and I'm now working 10 hours a week." - David</p>
-</div>
-<div class="testimonial">
-<p>"I was concerned about my child's safety and the affordability of tutoring, but this app has been a game-changer for us." - Sarah</p>
-</div>
-</section>
-<footer>
-<p>&copy; TutorPal</p>
-</footer>
+  <div class="container">
+    <div class="header">
+      <h1>Connect with verified local tutors at the lowest prices guaranteed</h1>
+      <p>Get a free first session to ensure a perfect match</p>
+    </div>
+    <div class="features">
+      <div class="feature">
+        <span class="feature-icon">📚</span>
+        <h2>Tutor Verification</h2>
+        <p>A rigorous background check and qualification verification process to ensure tutors are trustworthy and competent</p>
+      </div>
+      <div class="feature">
+        <span class="feature-icon">📅</span>
+        <h2>Session Booking</h2>
+        <p>An intuitive and user-friendly interface for students to book tutoring sessions with verified tutors</p>
+      </div>
+      <div class="feature">
+        <span class="feature-icon">💸</span>
+        <h2>In-app Payment Processing</h2>
+        <p>A secure and convenient payment system for students to pay for tutoring sessions</p>
+      </div>
+    </div>
+    <div class="call-to-action">
+      <button>Get Early Access</button>
+    </div>
+    <div class="testimonials">
+      <div class="testimonial">
+        <p class="testimonial-quote">I was struggling with calculus and chemistry, but with LearnPal, I found a great tutor who helped me improve my grades.</p>
+        <p>— Emily, Freshman Student</p>
+      </div>
+      <div class="testimonial">
+        <p class="testimonial-quote">LearnPal has been a game-changer for me. I can now work with reliable and consistent tutoring clients.</p>
+        <p>— David, Part-time Tutor</p>
+      </div>
+      <div class="testimonial">
+        <p class="testimonial-quote">As a parent, I was concerned about my child's safety and affordability, but LearnPal has exceeded my expectations.</p>
+        <p>— Sarah, Parent of a University Student</p>
+      </div>
+    </div>
+    <div class="footer">
+      <p>&copy; 2024 LearnPal</p>
+    </div>
+  </div>
 </body>
 </html>
