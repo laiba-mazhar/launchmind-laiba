@@ -1,0 +1,240 @@
+"""
+agents/engineer_agent.py
+Engineer Agent — generates HTML landing page, commits to GitHub, opens PR + issue.
+Owner: [Student Name]
+"""
+
+import base64
+import json
+import os
+import time
+
+import requests
+from openai import OpenAI
+
+import message_bus as bus
+
+client = OpenAI(api_key=os.environ["OPENAI_API_KEY"])
+
+GITHUB_TOKEN = os.environ["GITHUB_TOKEN"]
+GITHUB_REPO = os.environ["GITHUB_REPO"]          # e.g. "username/launchmind-group1"
+GITHUB_HEADERS = {
+    "Authorization": f"token {GITHUB_TOKEN}",
+    "Accept": "application/vnd.github+json",
+    "X-GitHub-Api-Version": "2022-11-28",
+}
+BRANCH_NAME = "agent-landing-page"
+BASE_URL = f"https://api.github.com/repos/{GITHUB_REPO}"
+
+
+# ── GitHub helpers ────────────────────────────────────────────────────────────
+
+def _get_main_sha() -> str:
+    r = requests.get(f"{BASE_URL}/git/ref/heads/main", headers=GITHUB_HEADERS)
+    r.raise_for_status()
+    return r.json()["object"]["sha"]
+
+
+def _branch_exists() -> bool:
+    r = requests.get(f"{BASE_URL}/git/ref/heads/{BRANCH_NAME}", headers=GITHUB_HEADERS)
+    return r.status_code == 200
+
+
+def _create_branch(sha: str) -> None:
+    if _branch_exists():
+        print(f"[ENGINEER] Branch '{BRANCH_NAME}' already exists, reusing.")
+        return
+    r = requests.post(
+        f"{BASE_URL}/git/refs",
+        headers=GITHUB_HEADERS,
+        json={"ref": f"refs/heads/{BRANCH_NAME}", "sha": sha},
+    )
+    r.raise_for_status()
+    print(f"[ENGINEER] Branch '{BRANCH_NAME}' created.")
+
+
+def _commit_file(html_content: str) -> None:
+    encoded = base64.b64encode(html_content.encode()).decode()
+
+    # Check if file already exists (need its SHA to update)
+    existing_sha = None
+    r = requests.get(
+        f"{BASE_URL}/contents/index.html",
+        headers=GITHUB_HEADERS,
+        params={"ref": BRANCH_NAME},
+    )
+    if r.status_code == 200:
+        existing_sha = r.json().get("sha")
+
+    payload = {
+        "message": "feat: add AI-generated landing page [EngineerAgent]",
+        "content": encoded,
+        "branch": BRANCH_NAME,
+        "author": {"name": "EngineerAgent", "email": "agent@launchmind.ai"},
+        "committer": {"name": "EngineerAgent", "email": "agent@launchmind.ai"},
+    }
+    if existing_sha:
+        payload["sha"] = existing_sha
+
+    r = requests.put(
+        f"{BASE_URL}/contents/index.html",
+        headers=GITHUB_HEADERS,
+        json=payload,
+    )
+    r.raise_for_status()
+    print("[ENGINEER] File committed to branch.")
+
+
+def _create_issue(title: str, body: str) -> str:
+    r = requests.post(
+        f"{BASE_URL}/issues",
+        headers=GITHUB_HEADERS,
+        json={"title": title, "body": body, "labels": ["agent-generated"]},
+    )
+    r.raise_for_status()
+    url = r.json()["html_url"]
+    print(f"[ENGINEER] Issue created: {url}")
+    return url
+
+
+def _open_pr(title: str, body: str) -> str:
+    # Check if PR already exists for this branch
+    r = requests.get(
+        f"{BASE_URL}/pulls",
+        headers=GITHUB_HEADERS,
+        params={"head": f"{GITHUB_REPO.split('/')[0]}:{BRANCH_NAME}", "state": "open"},
+    )
+    if r.status_code == 200 and r.json():
+        url = r.json()[0]["html_url"]
+        print(f"[ENGINEER] PR already exists: {url}")
+        return url
+
+    r = requests.post(
+        f"{BASE_URL}/pulls",
+        headers=GITHUB_HEADERS,
+        json={"title": title, "body": body, "head": BRANCH_NAME, "base": "main"},
+    )
+    r.raise_for_status()
+    url = r.json()["html_url"]
+    print(f"[ENGINEER] PR opened: {url}")
+    return url
+
+
+# ── LLM helpers ───────────────────────────────────────────────────────────────
+
+def _call_llm(system: str, user: str) -> str:
+    response = client.chat.completions.create(
+        model="gpt-4o",
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user", "content": user},
+        ],
+        temperature=0.7,
+    )
+    return response.choices[0].message.content.strip()
+
+
+# ── Main ──────────────────────────────────────────────────────────────────────
+
+def run(revision_feedback: str = None) -> dict:
+    """
+    Run the Engineer agent.
+    Returns dict with html, pr_url, issue_url.
+    """
+    print("\n[ENGINEER AGENT] Starting...")
+
+    msg = bus.get_latest("engineer")
+    if msg is None:
+        raise RuntimeError("Engineer agent: no messages in inbox.")
+
+    spec = msg["payload"]["spec"]
+    parent_id = msg["message_id"]
+
+    extra = ""
+    if revision_feedback:
+        extra = f"\n\nREVISION REQUIRED — fix these issues:\n{revision_feedback}"
+
+    # 1. Generate HTML
+    html_system = (
+        "You are a senior frontend developer. You write clean, complete, "
+        "single-file HTML pages with inline CSS. Return ONLY the HTML — "
+        "no explanation, no markdown fences."
+    )
+    html_prompt = f"""
+Create a professional landing page for this startup:
+
+Value proposition: {spec['value_proposition']}
+
+Features (top 3):
+{json.dumps(spec['features'][:3], indent=2)}
+
+User personas:
+{json.dumps(spec['personas'], indent=2)}
+
+Requirements:
+- A compelling headline and subheadline
+- A features section with icons (use emoji)
+- A call-to-action button ("Get Early Access")
+- Testimonials section using the persona names
+- Footer with startup name
+- Inline CSS — modern, clean design, dark navy + white palette
+- Fully responsive (mobile-friendly meta viewport tag)
+{extra}
+"""
+    html = _call_llm(html_system, html_prompt)
+    # Strip accidental fences
+    if html.startswith("```"):
+        html = html.split("```")[1]
+        if html.startswith("html"):
+            html = html[4:]
+        html = html.strip()
+
+    print("[ENGINEER] HTML generated.")
+
+    # 2. Generate issue body and PR description via LLM
+    meta_prompt = f"""
+For this startup landing page (value prop: "{spec['value_proposition']}"),
+generate a GitHub issue body and a PR description.
+
+Return JSON:
+{{
+  "issue_title": "...",
+  "issue_body": "...",
+  "pr_title": "...",
+  "pr_body": "..."
+}}
+No markdown fences.
+"""
+    raw = _call_llm("You are a senior software engineer writing GitHub content. Return only JSON.", meta_prompt)
+    try:
+        meta = json.loads(raw)
+    except Exception:
+        meta = {
+            "issue_title": "Initial landing page",
+            "issue_body": f"Auto-generated landing page for: {spec['value_proposition']}",
+            "pr_title": "feat: AI-generated landing page",
+            "pr_body": f"This PR adds the initial landing page.\n\n**Value proposition:** {spec['value_proposition']}",
+        }
+
+    # 3. GitHub actions
+    sha = _get_main_sha()
+    _create_branch(sha)
+    time.sleep(1)           # brief pause to let GitHub register the branch
+    _commit_file(html)
+    issue_url = _create_issue(meta["issue_title"], meta["issue_body"])
+    pr_url = _open_pr(meta["pr_title"], meta["pr_body"])
+
+    # 4. Report back to CEO
+    bus.send_message(
+        "engineer", "ceo", "result",
+        {
+            "pr_url": pr_url,
+            "issue_url": issue_url,
+            "html": html,
+            "branch": BRANCH_NAME,
+        },
+        parent_id,
+    )
+
+    bus.clear_inbox("engineer")
+    return {"html": html, "pr_url": pr_url, "issue_url": issue_url}
